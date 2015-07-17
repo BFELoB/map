@@ -1,7 +1,8 @@
 /********************************
  * Global variables/constants
  */
-var data_obj, numDatasets, layerOrdering, choropleths;
+var data_obj, numDatasets, layerOrdering, choropleths, layerControl;
+var layerControlPinned = true;
 var reverseGeocodeServiceUrl = "//nominatim.openstreetmap.org/reverse?format=json&accept-language=us-en";
 var overlayCount = 0;
 
@@ -633,15 +634,25 @@ function getChoropleths() {
 /********************************
  * Control creation/manipulation functions
  */
-function setLayerControlHeight(e) {
+function setLayerControlHeight() {
     var controlHeight = map.getSize().y-50;
-    /*
-     $(".leaflet-control-layers-expanded")
-     .css("max-height",controlHeight.toString()+"px");
-     */
     var cssString = ".leaflet-control-layers-expanded { max-height: "
         + controlHeight.toString() + "px; }";
     $("style#layercontrol").text(cssString);
+}
+
+function togglePinLayerControl(e) {
+    e.preventDefault();
+    c = layerControl._container;
+    if (layerControlPinned) {
+        L.Browser.android || c.off("mouseover").off("mouseout");
+        $(".leaflet-control-layers-pin-button").removeClass("pinned");
+    } else {
+        L.Browser.android || c.on("mouseover",layerControl._expand)
+            .on("mouseout",layerControl._collapse);
+        $(".leaflet-control-layers-pin-button").addClass("pinned");
+    }
+    layerControlPinned = !layerControlPinned;
 }
 
 function getChoroplethVariableLabel (dataset, props) {
@@ -1048,8 +1059,8 @@ if (!window.location.queryParams.report) {
     overlay_groups[getLayerCategoryLabel("summary")] = {};
     overlay_groups[getLayerCategoryLabel("initiative")] = {};
     overlay_groups[getLayerCategoryLabel("baseline")] = {};
-    var layerControl = L.control.groupedLayers(
-        base_layers, overlay_groups, { exclusiveGroups: [] });
+    layerControl = L.control.groupedLayers(
+        base_layers, overlay_groups, { exclusiveGroups: [], collapsed: false });
     layerControl.addTo(map);
     // For accessibility
     $("a.leaflet-control-layers-toggle").prop("title","Select Data Layers")
@@ -1061,11 +1072,19 @@ if (!window.location.queryParams.report) {
     var selectAllButton = "<button class=\"select-all-overlays\" type=\"button\" onclick=\"addAllLayers()\">Select All</button>";
     var unselectAllButton = "<button class=\"unselect-all-overlays\" type=\"button\" onclick=\"removeAllLayers()\">Unselect All</button>";
     buttonsDiv.html(selectAllButton+unselectAllButton);
+    var pinButton = $("<button></button>").addClass("leaflet-control-layers-pin-button")
+        .html('<span class="fa fa-thumb-tack"></span>Pin');
+    pinButton.on("click", togglePinLayerControl)
+        .on("keyDown", togglePinLayerControl)
+        .on("touchstart", togglePinLayerControl);
     var titleSpan = "<div><h3 class=\"leaflet-control-layers-title\"><span>Select Data Layers</span></h3></div>";
     $("form.leaflet-control-layers-list").prepend($(titleSpan));
+    $(".leaflet-control-layers-title").after(pinButton);
     $(".leaflet-control-layers-toggle").on("mouseover", setLayerControlHeight)
         .on("focus", setLayerControlHeight)
         .on("touchstart",setLayerControlHeight);
+    $(".leaflet-control-layers").addClass("leaflet-control-layers-expanded");
+    $(".leaflet-control-layers-pin-button").addClass("pinned");
 }
 
 // Add base layer to map
